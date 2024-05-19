@@ -4,9 +4,9 @@ Shopify Image Monitor for Discord is a Python-based project that allows users to
 
 ## Features
 
-- Track changes in images for any Shopify site or collection
+- Monitor for new product images for any Shopify site or collection
 - Sends notifications to a specified Discord channel.
-- Fully configurable to track as many or as sites/collections as desired.
+- Fully configurable to track as many sites/collections as desired.
 
 ## Bot commands
 
