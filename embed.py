@@ -19,7 +19,7 @@ def generate_product_embed(
     embed.set_image(image["src"])
     embed.add_field(name="Brand", value=product["brand"], inline=True)
     embed.add_field(name="Resolution", value=str(str(image["height"]) + "x" + str(image["width"])), inline=True)
-    embed.add_field(name="Position", value=image["position"], inline=True)
+    #embed.add_field(name="Position", value=image["position"], inline=True)
     embed.add_field(name="Created At", value=image["created_at"], inline=True)
     
   

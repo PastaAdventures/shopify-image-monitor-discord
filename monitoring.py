@@ -62,15 +62,13 @@ async def check_product(
 
 async def monitor_site(bot: BotApp, monitor: dict) -> None:
     products = Shopify.get_products(monitor["url"])
-    #number_of_ids = sum([1 for key_number in products if 'id' in key_number])
-    #print(number_of_ids)
+
     for product in products:
         await check_product(bot, monitor, product, "site")
 
 
 async def monitor_collection(bot: BotApp, monitor: dict) -> None:
     products = Shopify.get_products(monitor["url"])
-    #number_of_ids = sum([1 for key_number in products if 'id' in key_number])
-    #print(number_of_ids)
+
     for product in products:
         await check_product(bot, monitor, product, "collection")

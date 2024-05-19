@@ -47,13 +47,6 @@ class Shopify:
         """
         content = Shopify.retrieve_whole_json(url)
         content = {"products": content}
-        #url = Shopify.format_url(url)
-        #url = urljoin(url, "products.json")
-        
-        #content = get(url).json()
-        #json_object = json.dumps(content, indent=4)
-        #with open("dump.json", "w") as outfile:
-            #outfile.write(json_object)
         
 
         return [
