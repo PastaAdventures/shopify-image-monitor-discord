@@ -6,38 +6,35 @@ import hikari
 import lightbulb
 from logging import info
 from shopify import Shopify
-from monitoring import monitor_product, monitor_collection, monitor_search
+from monitoring import monitor_site, monitor_collection
 
 dotenv.load_dotenv()
 
 db = dataset.connect("sqlite:///data.db")
 bot = lightbulb.BotApp(token=os.getenv("TOKEN"))
 bot.d.monitors = db["monitors"]
-bot.d.variants = db["variants"]
+bot.d.images = db["images"]
 
 
-async def run_background() -> None:
+async def run_background() ->    None:
     info("Scraper started.")
 
     while True:
         for monitor in bot.d.monitors:
             info(
-                "Monitoring {type} URL: {url} {query}".format(
+                "Monitoring {type} URL: {url}".format(
                     type=monitor["type"],
                     url=monitor["url"],
-                    query=monitor["query"] or "",
                 )
             )
 
             try:
-                if monitor["type"] == "product":
-                    await monitor_product(bot, monitor)
+                if monitor["type"] == "site":
+                    await monitor_site(bot, monitor)
 
-                if monitor["type"] == "collection":
+                if monitor["type"] == "collection": 
                     await monitor_collection(bot, monitor)
 
-                if monitor["type"] == "search":
-                    await monitor_search(bot, monitor)
             except Exception as e:
                 info("Error while monitoring: {error}".format(error=e))
 
@@ -66,6 +63,33 @@ async def add() -> None:
 
 @add.child
 @lightbulb.option("channel", "Channel", type=hikari.TextableChannel, required=True)
+@lightbulb.option("url", "Site URL", type=str, required=True)
+@lightbulb.command("site", "Enable monitoring for a site")
+@lightbulb.implements(lightbulb.SlashSubCommand)
+async def register_site(ctx: lightbulb.Context) -> None:
+    if not ctx.options.url.startswith(("https://", "http://")):
+        await ctx.respond("❌ Invalid URL")
+        return
+
+    config = Shopify.get_shopify_config(ctx.options.url)
+
+    if config is not None:
+        ctx.bot.d.monitors.insert(
+            {
+                "url": ctx.options.url,
+                "channel_id": ctx.options.channel.id,
+                "type": "site",
+
+            }
+        )
+        await ctx.respond("✅ Registered site monitoring!")
+        return
+
+    await ctx.respond("❌ This website is not a Shopify website")
+
+
+@add.child
+@lightbulb.option("channel", "Channel", type=hikari.TextableChannel, required=True)
 @lightbulb.option("url", "Collection URL", type=str, required=True)
 @lightbulb.command("collection", "Enable monitoring for a collection")
 @lightbulb.implements(lightbulb.SlashSubCommand)
@@ -86,7 +110,6 @@ async def register_collection(ctx: lightbulb.Context) -> None:
                 "url": ctx.options.url,
                 "channel_id": ctx.options.channel.id,
                 "type": "collection",
-                "currency": config["currency"],
             }
         )
         await ctx.respond("✅ Registered collection monitoring!")
@@ -95,92 +118,9 @@ async def register_collection(ctx: lightbulb.Context) -> None:
     await ctx.respond("❌ The URL is invalid, it should contains /collections/.")
 
 
-@add.child
-@lightbulb.option("channel", "Channel", type=hikari.TextableChannel, required=True)
-@lightbulb.option("url", "Product URL", type=str, required=True)
-@lightbulb.command("product", "Enable monitoring for a product")
-@lightbulb.implements(lightbulb.SlashSubCommand)
-async def register_product(ctx: lightbulb.Context) -> None:
-    if not ctx.options.url.startswith(("https://", "http://")):
-        await ctx.respond("❌ Invalid URL")
-        return
-
-    config = Shopify.get_shopify_config(ctx.options.url)
-
-    if config is None:
-        await ctx.respond("❌ This website is not a Shopify website")
-        return
-
-    if Shopify.is_product(ctx.options.url):
-        ctx.bot.d.monitors.insert(
-            {
-                "url": ctx.options.url,
-                "channel_id": ctx.options.channel.id,
-                "type": "product",
-                "currency": config["currency"],
-            }
-        )
-        await ctx.respond("✅ Registered product monitoring!")
-        return
-
-    await ctx.respond("❌ The URL is invalid, it should contains /products/.")
-
-
-@add.child
-@lightbulb.option("channel", "Channel", type=hikari.TextableChannel, required=True)
-@lightbulb.option("query", "Searched product name", type=str, required=True)
-@lightbulb.option("url", "Website base URL", type=str, required=True)
-@lightbulb.command("search", "Enable monitoring for a search query")
-@lightbulb.implements(lightbulb.SlashSubCommand)
-async def search(ctx: lightbulb.Context) -> None:
-    if not ctx.options.url.startswith(("https://", "http://")):
-        await ctx.respond("❌ Invalid URL")
-        return
-
-    config = Shopify.get_shopify_config(ctx.options.url)
-
-    if config is None:
-        await ctx.respond("❌ This website is not a Shopify website")
-        return
-
-    ctx.bot.d.monitors.insert(
-        {
-            "url": ctx.options.url,
-            "channel_id": ctx.options.channel.id,
-            "type": "search",
-            "query": ctx.options.query,
-            "currency": config["currency"],
-        }
-    )
-    await ctx.respond("✅ Registered search monitoring!")
-
-
-@monitors.child
-@lightbulb.command("refresh-currency", "Refresh currency")
-@lightbulb.implements(lightbulb.SlashSubCommand)
-async def refresh_currency(ctx: lightbulb.Context):
-    monitors = bot.d.monitors.find()
-
-    for monitor in monitors:
-        config = Shopify.get_shopify_config(monitor["url"])
-
-        if config is None:
-            continue
-
-        bot.d.monitors.update(
-            {
-                "id": monitor["id"],
-                "currency": config["currency"],
-            },
-            ["id"],
-        )
-
-    await ctx.respond("✅ Refreshed currency")
-
-
 @monitors.child
 @lightbulb.option("channel", "Channel", type=hikari.TextableChannel, required=True)
-@lightbulb.command("collections", "List collections")
+@lightbulb.command("list", "List monitors")
 @lightbulb.implements(lightbulb.SlashSubCommand)
 async def list(ctx: lightbulb.Context):
     monitors = bot.d.monitors.find(channel_id=ctx.options.channel.id)
@@ -194,11 +134,11 @@ async def list(ctx: lightbulb.Context):
         embed.title = "Monitor #{}".format(monitor["id"])
         embed.add_field("URL", monitor["url"], inline=True)
         embed.add_field("Type", str(monitor["type"]).capitalize(), inline=True)
-
-        variants_count = bot.d.variants.count(monitor_id=monitor["id"])
-        embed.add_field("Variants found", variants_count, inline=True)
+ 
+        image_count = bot.d.images.count(monitor_id=monitor["id"])
+        embed.add_field("Images found", image_count, inline=True)
         await ctx.respond(embed=embed)
-
+        
 
 @monitors.child
 @lightbulb.option("id", "Monitor ID", type=int, required=True)

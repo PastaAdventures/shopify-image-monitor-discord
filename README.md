@@ -1,22 +1,25 @@
-# Shopify Monitor for Discord
+# Shopify Image Monitor for Discord
 
-[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/donate/?hosted_button_id=X28NBS7XN2Q9C)
-
-Shopify Monitor for Discord is a Python-based project that allows users to track prices, availability changes, search results, and collections for any Shopify product. It provides low latency notifications to Discord channels, ensuring you never miss an important change.
-
-You can make a donation using the button above, all of my Discord bot are open-source and hopefully they'll always be. You can help me maintaining them by making a small donation.
+Shopify Image Monitor for Discord is a Python-based project that allows users to track changes in images for any Shopify site or collections. It provides low latency notifications to Discord channels, ensuring you never miss an important change.
 
 ## Features
 
-- Track price changes and availability of specific Shopify products.
-- Monitor changes in search results for a specified keyword.
-- Watch collections for product listing, availability change and price drops.
+- Track changes in images for any Shopify site or collection
 - Sends notifications to a specified Discord channel.
-- Fully configurable to track as many or as few products/search terms/collections as desired.
+- Fully configurable to track as many or as sites/collections as desired.
+
+## Bot commands
+
+```sh
+/monitors add site [url] [channel]              # Monitor a product
+/monitors add collection [url] [channel]        # Monitor a collection
+/monitors list [channel]                        # List active monitors for a given channel
+/monitors remove [id]                           # Deactivate a monitor
+```
 
 ## Requirements
 
-- Python 3.9 or later
+- Python 3.11 or later
 - Discord account and server
 
 ## Installation

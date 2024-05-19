@@ -1,6 +1,9 @@
+import requests
+import pprint
+import json
 from urllib.parse import urljoin
-from requests import get
 from typing import Dict, List
+from requests import get
 
 
 class Shopify:
@@ -17,14 +20,41 @@ class Shopify:
         return url
 
     @staticmethod
-    def get_collection(url: str) -> List[Dict[str, str]]:
+    def retrieve_whole_json(url :str) -> dict:
+        """
+        Ger json from all pages
+        """
+        page = 1
+        agg_data = []
+    
+        while True:
+            page_url = url + f"/products.json?page={str(page)}"
+            response = requests.get(page_url)
+            data = response.json()
+            page_has_products = "products" in data and len(
+                data["products"]) > 0
+
+            if not page_has_products:
+                break
+            agg_data.extend(data["products"])
+            page += 1
+        return agg_data
+
+    @staticmethod
+    def get_products(url: str) -> List[Dict[str, str]]:
         """
         Get collection's products
         """
-        url = Shopify.format_url(url)
-        url = urljoin(url, "products.json")
-
-        content = get(url).json()
+        content = Shopify.retrieve_whole_json(url)
+        content = {"products": content}
+        #url = Shopify.format_url(url)
+        #url = urljoin(url, "products.json")
+        
+        #content = get(url).json()
+        #json_object = json.dumps(content, indent=4)
+        #with open("dump.json", "w") as outfile:
+            #outfile.write(json_object)
+        
 
         return [
             {
@@ -32,20 +62,20 @@ class Shopify:
                 "title": product["title"],
                 "url": urljoin(url, "/products/" + product["handle"]),
                 "brand": product["vendor"],
-                "type": product["product_type"],
-                "price": product.get("variants", [])[0].get("price", "N/A"),
-                "variants": [
+                "images": [
                     {
-                        "id": variant["id"],
-                        "title": variant["title"],
-                        "price": variant["price"],
+                        "id": image["id"],
+                        "src": image["src"], 
+                        "height": image["height"],
+                        "width": image["width"],
+                        "position": image["position"],
+                        "created_at": image["created_at"],        
                         "available": Shopify.get_available_status(
-                            variant.get("available", "N/A")
+                            image.get("available", "N/A")
                         ),
                     }
-                    for variant in product.get("variants", [])
-                ],
-                "image": product["images"][0]["src"] or "",
+                    for image in product.get("images", [])
+                ]
             }
             for product in content["products"]
         ]
@@ -62,62 +92,6 @@ class Shopify:
             return 0
         else:
             return -1
-
-    @staticmethod
-    def get_product(url: str) -> Dict[str, str]:
-        """
-        Get product information
-        """
-        url = Shopify.format_url(url)
-        url = url.rstrip("/") + ".js"
-
-        product = get(url).json()
-
-        return {
-            "id": product["id"],
-            "title": product["title"],
-            "url": urljoin(url, "/products/" + product["handle"]),
-            "brand": product["vendor"],
-            "price": product["price"] / 100 or "N/A",
-            "type": product["type"],
-            "variants": [
-                {
-                    "id": variant["id"],
-                    "title": variant["title"],
-                    "price": variant["price"] / 100 or "N/A",
-                    "available": Shopify.get_available_status(
-                        variant.get("available", "N/A")
-                    ),
-                }
-                for variant in product.get("variants", [])
-            ],
-            "image": product["media"][0]["src"] or "",
-        }
-
-    @staticmethod
-    def get_search_results(url: str, query: str) -> List[Dict[str, str]]:
-        """
-        Get search results
-        """
-        params = "resources[type]=product&resources[options][unavailable_products]=hide"
-        url = Shopify.format_url(url)
-        url = urljoin(
-            url, "/search/suggest.json?q={q}&{params}".format(q=query, params=params)
-        )
-
-        content = get(url).json()
-
-        return [
-            {
-                "id": product["id"],
-                "title": product["title"],
-                "url": urljoin(url, "/products/" + product["handle"]),
-                "brand": product["vendor"],
-                "image": product["image"],
-                "price": product["price"],
-            }
-            for product in content["resources"]["results"]["products"]
-        ]
 
     @staticmethod
     def get_shopify_config(url: str) -> Dict[str, str]:
@@ -142,23 +116,9 @@ class Shopify:
             return False
 
         try:
-            products = Shopify.get_collection(url)
+            products = Shopify.get_products(url)
 
             return len(products) > 0
         except:
             return False
 
-    @staticmethod
-    def is_product(url: str) -> bool:
-        """
-        Check if the URL is a valid product
-        """
-
-        if not "/products/" in url:
-            return False
-
-        try:
-            Shopify.get_product(url)
-            return True
-        except:
-            return False
